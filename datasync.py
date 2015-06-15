@@ -22,7 +22,6 @@ import logging
 import paho.mqtt.client as mqtt
 import pyodbc
 
-from libs.utils import convert
 from libs.datasync import *
 from libs.msodbc import ODBC_MS
 
