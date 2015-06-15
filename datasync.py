@@ -17,6 +17,7 @@ import os
 import sys
 import time
 import json
+import threading
 import logging
 import paho.mqtt.client as mqtt
 import pyodbc
@@ -67,6 +68,43 @@ def on_message(client, userdata, msg):
             logger.error("insert fail.")
             save_sql(sql, time.strftime('%Y-%m-%d %H:%M:%S'))
 
+# mqtt消息处理函数
+def process_mqtt_message():
+    # 监控mqtt队列
+    try:
+        client = mqtt.Client(client_id=config_info["mqtt"]["client_id"] + "_datasync")
+        client.on_connect = on_connect
+        client.on_message = on_message
+        client.connect(host=config_info["mqtt"]["host"], port=config_info["mqtt"]["port"], keepalive=60)
+        client.loop_forever()
+    except Exception, e:
+        logger.error("mqtt客户端启动失败，错误内容：%r" % e)
+        sys.exit()
+
+# sql重试函数
+def process_retry_sql():
+    while True:
+        be_success = False
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        sql_records = load_sql(timestamp)
+        try:
+            for record in sql_records:
+                result = sql_server.exec_one_sql(record)
+                if not result:
+                    # 如果一条不成功，则中止操作。
+                    be_success = False
+                    break
+                else:
+                    be_success = True
+
+            if be_success:
+                remove_sql(timestamp)
+
+        except Exception, e:
+            logger.error("process_retry_sql faile, exception:%r" % e)
+
+        # 休眠1s
+        time.sleep(1)
 
 def main():
     # 测试sql server
@@ -79,17 +117,21 @@ def main():
         logger.error("check_sqlite_table fail.")
         sys.exit()
 
-    # 监控mqtt队列
-    try:
-        client = mqtt.Client(client_id=config_info["mqtt"]["client_id"] + "_interface_sub")
-        client.on_connect = on_connect
-        client.on_message = on_message
-        client.connect(host=config_info["mqtt"]["host"], port=config_info["mqtt"]["port"], keepalive=60)
-        client.loop_forever()
-    except Exception, e:
-        logger.error("mqtt客户端启动失败，错误内容：%r" % e)
-        sys.exit()
+    mqtt_thread = None
+    retry_thread = None
 
+    while True:
+        if mqtt_thread is None or not mqtt_thread.isAlive():
+            logger.debug("启动MQTT消息处理进程")
+            mqtt_thread = threading.Thread(target=process_mqtt_message)
+            mqtt_thread.start()
+
+        if retry_thread is None or not retry_thread.isAlive():
+            logger.debug("启动sql重试进程")
+            retry_thread = threading.Thread(target=process_retry_sql)
+            retry_thread.start()
+
+        time.sleep(5)
 
 def entry_point():
     """Zero-argument entry point for use with setuptools/distribute."""
