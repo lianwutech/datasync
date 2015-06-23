@@ -9,19 +9,15 @@ lianwuyun与业务平台间的数据同步
 
 """
 
-
 from __future__ import print_function
 
-
-import os
-import sys
 import time
 import json
 import threading
 import logging
 import paho.mqtt.client as mqtt
-import pyodbc
 
+import setting
 from libs.datasync import *
 from libs.msodbc import ODBC_MS
 
@@ -40,6 +36,15 @@ sql_server = ODBC_MS(server=config_info["sqlserver"]["host"],
                      uid=config_info["sqlserver"]["uid"],
                      pwd=config_info["sqlserver"]["pwd"])
 
+# 停止标记
+run_flag = False
+
+def stop():
+    """
+    插件停止
+    :return:
+    """
+    run_flag = False
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, rc):
@@ -105,7 +110,10 @@ def process_retry_sql():
         # 休眠1s
         time.sleep(1)
 
-def main():
+def run():
+    # 初始化标记
+    run_flag = True
+
     # 测试sql server
     if not sql_server.test_db():
         logger.error("database test fail.")
@@ -130,14 +138,12 @@ def main():
             retry_thread = threading.Thread(target=process_retry_sql)
             retry_thread.start()
 
+        if run_flag == False:
+            mqtt_thread.join(1)
+            retry_thread.join(1)
+            break
+
         time.sleep(5)
-
-def entry_point():
-    """Zero-argument entry point for use with setuptools/distribute."""
-    raise SystemExit(main(sys.argv))
-
-if __name__ == '__main__':
-    main()
 
 
 
