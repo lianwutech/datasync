@@ -35,7 +35,7 @@ def check_sqlite_table():
     cur = con.cursor()
     cur.execute("SELECT COUNT(*) as count FROM sqlite_master where type='table' and name='sql_bak'")
     res = cur.fetchone()
-    if res["count"] == 0:
+    if res[0] == 0:
         # 如果表不存在则创建表
         cur.execute("""
         CREATE TABLE sql_bak (id integer primary key autoincrement,
@@ -59,7 +59,7 @@ def save_sql(sql, timestamp):
 def load_sql(timestamp):
     con = sqlite3.connect('sqldb.db3')
     cur = con.cursor()
-    cur.execute("SELECT id, sql, process_flag FROM sql_bak WHERE timestamp <= '%s'" % timestamp)
+    cur.execute("SELECT id, sql FROM sql_bak WHERE timestamp <= '%s'" % timestamp)
     records = cur.fetchall()
     con.close()
     return records

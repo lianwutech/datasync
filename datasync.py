@@ -31,7 +31,8 @@ logger = logging.getLogger('datasync')
 config_info = load_config(config_file_name)
 
 # 数据库对象
-sql_server = ODBC_MS(server=config_info["sqlserver"]["host"],
+sql_server = ODBC_MS(driver="{SQL SERVER}",
+                     server=config_info["sqlserver"]["host"],
                      database=config_info["sqlserver"]["database"],
                      uid=config_info["sqlserver"]["uid"],
                      pwd=config_info["sqlserver"]["pwd"])
@@ -108,7 +109,7 @@ def process_retry_sql():
             logger.error("process_retry_sql faile, exception:%r" % e)
 
         # 休眠1s
-        time.sleep(1)
+        time.sleep(5)
 
 def run():
     # 初始化标记
