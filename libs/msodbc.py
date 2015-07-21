@@ -18,8 +18,8 @@ class ODBC_MS:
     cnxn = pyodbc.connect(DRIVER='{SQL SERVER}',SERVER=r'ZHANGHUAMIN\MSSQLSERVER_ZHM',DATABASE='AdventureWorks2008',UID='sa',PWD='wa1234',charset="utf-8")
     """
 
-    def __init__(self, driver, server, database, uid, pwd):
-        self.DRIVER = driver
+    def __init__(self, server, database, uid, pwd):
+        self.DRIVER = "{SQL Server}"
         self.SERVER = server
         self.DATABASE = database
         self.UID = uid
@@ -40,7 +40,7 @@ class ODBC_MS:
                                    DATABASE=self.DATABASE,
                                    UID=self.UID,
                                    PWD=self.PWD,
-                                   charset="UTF-8")
+                                   charset="utf-8")
         cur = self.conn.cursor()
         if not cur:
             raise(NameError, "connected failed!")
@@ -72,6 +72,9 @@ class ODBC_MS:
         :return:
         """
         cur = self.get_connect()
+        cur.execute("select * from mps_compcustomer")
+        row = cur.fetchone()
+        print row
         cur.execute(sql)
         # 连接句柄来提交
         result = self.conn.commit()
@@ -81,7 +84,10 @@ class ODBC_MS:
 
     def test_db(self):
         try:
-            self.get_connect()
+            cur = self.get_connect()
+            # cur.execute("select * from mps_compcustomer")
+            # row = cur.fetchone()
+            # print row
             self.conn.close()
             return True
         except Exception, e:

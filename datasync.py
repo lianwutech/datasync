@@ -31,8 +31,7 @@ logger = logging.getLogger('datasync')
 config_info = load_config(config_file_name)
 
 # 数据库对象
-sql_server = ODBC_MS(driver="{SQL SERVER}",
-                     server=config_info["sqlserver"]["host"],
+sql_server = ODBC_MS(server=config_info["sqlserver"]["host"],
                      database=config_info["sqlserver"]["database"],
                      uid=config_info["sqlserver"]["uid"],
                      pwd=config_info["sqlserver"]["pwd"])
@@ -59,19 +58,22 @@ def on_connect(client, userdata, rc):
 def on_message(client, userdata, msg):
     logger.debug("收到数据消息" + msg.topic + " " + str(msg.payload))
     # csv解码
-    if msg.topic == "datapoint":
-        data_point = json.loads(msg.payload)
-        timestamp = data_point["timestamp"]
-        component_id = data_point["component_id"]
-        data = data_point["data"]
-        sql = """
-            insert into ebs_extend..mps_compcustomer(cc_tagi,cc_ctid,cc_createdate, cc_custusercode, cc_ext01)
-            Values(102,33, %s, %d, %r)
-            """ % (timestamp, component_id, data)
-        result = sql_server.exec_one_sql(sql)
-        if not result:
-            logger.error("insert fail.")
-            save_sql(sql, time.strftime('%Y-%m-%d %H:%M:%S'))
+    if "datapoint" in msg.topic:
+        try:
+            data_point = json.loads(msg.payload)
+            timestamp = data_point["timestamp"]
+            component_id = data_point["component_id"]
+            data = data_point["data"]["barcode"]
+            sql = """
+                insert into mps_compcustomer(cc_tagi,cc_ctid,cc_createdate, cc_custusercode, cc_ext01)
+                Values(102, 33, cast('%s' as datetime), %d, '%s')
+                """ % (timestamp, component_id, data)
+            result = sql_server.exec_one_sql(sql)
+            if not result:
+                logger.error("insert fail.")
+                save_sql(sql, time.strftime('%Y-%m-%d %H:%M:%S'))
+        except Exception, e:
+            logger.error("excepetion: %r" % e)
 
 # mqtt消息处理函数
 def process_mqtt_message():
